@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Medoo Database Framework.
  *
  * The Lightweight PHP Database Framework to Accelerate Development.
- * With some changes and tuning (sqlite, distinct)
+ * With some changes and tuning (sqlite, fts4/fts5, distinct)
  *
  * @version 2.1.9
  * @author Angel Lai

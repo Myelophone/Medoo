@@ -1,7 +1,7 @@
 {
 	"name": "myelophone/medoo",
 	"type": "framework",
-	"description": "Medoo with sqlite tuning and Distinct. Fork of the lightweight PHP database framework to accelerate the development.",
+	"description": "Medoo with sqlite tuning, virtual fts5 tables and Distinct. Fork of the lightweight PHP database framework to accelerate the development.",
 	"keywords": ["database", "database library", "lightweight", "PHP framework", "SQL", "MySQL", "MSSQL", "SQLite", "PostgreSQL", "MariaDB", "Oracle"],
 	"homepage": "https://myelophone.com",
 	"license": "MIT",
