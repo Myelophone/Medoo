@@ -1,24 +1,21 @@
 {
-	"name": "catfan/medoo",
+	"name": "myelophone/medoo",
 	"type": "framework",
-	"description": "The lightweight PHP database framework to accelerate development",
+	"description": "Medoo with sqlite tuning and Distinct. Fork of the lightweight PHP database framework to accelerate the development.",
 	"keywords": ["database", "database library", "lightweight", "PHP framework", "SQL", "MySQL", "MSSQL", "SQLite", "PostgreSQL", "MariaDB", "Oracle"],
-	"homepage": "https://medoo.in",
+	"homepage": "https://myelophone.com",
 	"license": "MIT",
 	"support": {
-		"issues": "https://github.com/catfan/Medoo/issues",
-		"source": "https://github.com/catfan/Medoo"
+		"source": "https://github.com/Myelophone/Medoo"
 	},
 	"authors": [
-		{"name": "Angel Lai", "email": "angel@medoo.in"}
+		{"name": "Angel Lai", "email": "angel@medoo.in"},
+		{"name": "Aleks Ivanov", "email": "mail@aleksivanov.me"}
 	],
 	"require": {
 		"php": ">=7.3",
 		"ext-pdo": "*"
 	},
-	"require-dev": {
-        "phpunit/phpunit": "^9.0"
-    },
 	"suggest": {
 		"ext-pdo_mysql": "For MySQL or MariaDB database",
 		"ext-pdo_sqlsrv": "For MSSQL database on both Window/Liunx platform",
@@ -31,13 +28,5 @@
 		"psr-4": {
 			"Medoo\\": "src/"
 		}
-	},
-	"autoload-dev": {
-        "psr-4": {
-            "Medoo\\Tests\\": "tests/"
-        }
-	},
-	"scripts": {
-		"test": "vendor/bin/phpunit tests"
 	}
 }

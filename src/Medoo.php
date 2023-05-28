@@ -1,17 +1,22 @@
 <?php
 
 declare(strict_types=1);
+
 /**
  * Medoo Database Framework.
  *
  * The Lightweight PHP Database Framework to Accelerate Development.
+ * With some changes and tuning (sqlite, distinct)
  *
  * @version 2.1.9
  * @author Angel Lai
+ * @author Angel Lai
  * @package Medoo
  * @copyright Copyright 2023 Medoo Project, Angel Lai.
+ * @copyright Changes to original code made by Aleks Ivanov - creative web studio Myelophone.
  * @license https://opensource.org/licenses/MIT
  * @link https://medoo.in
+ * @link https://myelophone.com
  */
 
 namespace Medoo;
@@ -174,6 +179,13 @@ class Medoo
      */
     public $errorInfo = null;
 
+    /* start myelophone changes */
+    protected $distinct_mode = false;
+    public $_rowid = 'id';
+    protected $fts5 = false;
+    public $version;
+    /* end myelophone changes */
+
     /**
      * Connect the database.
      *
@@ -202,6 +214,13 @@ class Medoo
 
     public function __construct(array $options)
     {
+        /* start myelophone changes */
+        if(empty($options[ 'charset' ]))
+        {
+            $options[ 'charset' ] = 'utf8';
+        }
+        /* end myelophone changes */
+        
         if (isset($options['prefix'])) {
             $this->prefix = $options['prefix'];
         }
@@ -443,6 +462,40 @@ class Medoo
                 " COLLATE '{$options['collation']}'" : ''
             );
         }
+        /* start myelophone changes */
+        else if (
+            in_array($this->type, ['sqlite'])
+        )
+        {
+            try {
+                $memoryDb = new PDO('sqlite::memory:');
+                $memoryDb->exec('CREATE VIRTUAL TABLE fts5test USING fts5 (data)');
+                $sqliteversionmain = $memoryDb->query('select sqlite_version()')->fetch()[0];
+                $sqliteversion = explode('.', $sqliteversionmain);
+                if($sqliteversion[0] >= 3 && $sqliteversion[1] >= 9)
+                {
+                    $this->fts5 = true;
+                }
+                $this->version = $sqliteversionmain;
+                $memoryDb = null;
+            }catch (PDOException $e){
+                if(!empty($memoryDb)){
+                    $memoryDb = null;
+                }
+            }
+            
+            $commands[] = "PRAGMA journal_mode = MEMORY;";
+			$commands[] = "PRAGMA synchronous = OFF;";
+			$commands[] = "PRAGMA PAGE_SIZE = 8192;";
+			$commands[] = "PRAGMA busyTimeout = 3000;";
+			$commands[] = 'PRAGMA encoding = "UTF-8";';
+			$commands[] = 'PRAGMA case_sensitive_like = OFF;';
+			$commands[] = 'PRAGMA count_changes = OFF;';
+			$commands[] = 'PRAGMA temp_store = MEMORY;';
+			$commands[] = 'PRAGMA cache_size = 3000;';
+			$commands[] = 'PRAGMA default_cache_size = 3000;';
+        }
+        /* end myelophone changes */
 
         $this->dsn = $dsn;
 
@@ -453,6 +506,20 @@ class Medoo
                 $options['password'] ?? null,
                 $option
             );
+
+            /* start myelophone changes */
+            if($this->type = 'sqlite')
+            {
+                if($this->fts5 === true)
+                {
+                    $this->_rowid = 'rowid';//fts5
+                }
+                else
+                {
+                    $this->_rowid = 'docid';//fts4
+                }
+            }
+            /* end myelophone changes */
 
             if (isset($options['error'])) {
                 $this->pdo->setAttribute(
@@ -479,6 +546,16 @@ class Medoo
         }
     }
 
+    /* start myelophone changes */
+    public function dbexit()
+    {
+        if(!is_null($this->pdo))
+        {
+            $this->pdo = null;
+        }
+    }
+    /* end myelophone changes */
+
     /**
      * Generate a new map key for the placeholder.
      *
@@ -500,6 +577,13 @@ class Medoo
     {
         $raw = $this->raw($statement, $map);
         $statement = $this->buildRaw($raw, $map);
+
+        /* start myelophone changes */
+        $this->exec('BEGIN IMMEDIATE;');
+        $res = $this->exec($statement, $map);
+        $this->exec('COMMIT;');
+        return $res;
+        /* end myelophone changes */
 
         return $this->exec($statement, $map);
     }
@@ -1226,6 +1310,20 @@ class Medoo
             $column = $this->columnPush($columns, $map, true, $isJoin);
         }
 
+        /* start myelophone changes */
+        if($this->distinct_mode === true)
+        {
+            $column = 'DISTINCT ' . $column;
+        }
+
+        if($this->type == 'sqlite' AND strpos($column, 'COUNT') === false AND strpos($column, 'DISTINCT') === false AND strpos($column, 'rowid') === false)
+        {
+            $column = $column . ', "rowid"';
+        }
+
+        $this->distinct_mode = false;
+        /* end myelophone changes */
+
         return 'SELECT ' . $column . ' FROM ' . $tableQuery . $this->whereClause($where, $map);
     }
 
@@ -1550,6 +1648,21 @@ class Medoo
         }
 
         $command = 'CREATE TABLE';
+
+        /* start myelophone changes */
+        if($this->type === 'sqlite')
+        {
+            if($this->fts5 === true)
+            {
+                $tableName .= ' USING fts5';
+            }
+            else{
+                $tableName .= ' USING fts4';
+            }
+
+            $command = 'CREATE VIRTUAL TABLE';
+        }
+        /* end myelophone changes */
 
         if (in_array($this->type, ['mysql', 'pgsql', 'sqlite'])) {
             $command .= ' IF NOT EXISTS';
@@ -2236,4 +2349,53 @@ class Medoo
 
         return $output;
     }
+
+    /* start myelophone changes */
+    public function encode($string, $strict = false)
+	{
+		$search = array(
+			'@<script[^>]*?>.*?</script>@si',   // Strip out javascript
+			'@<style[^>]*?>.*?</style>@siU',    // Strip style tags properly
+			'@<![\s\S]*?--[ \t\n\r]*>@'         // Strip multi-line comments
+		);
+		if(!is_int($string) AND !is_bool($string) AND !is_float($string) AND !is_array($string))
+		{
+			$string = preg_replace($search, '', $string);
+			$string = addslashes($string);
+			if($strict === true)
+			{
+				$string = strip_tags($string);
+			}
+		}
+		else if(is_array($string))
+		{
+			foreach($string as $k => $v)
+			{
+				$v = preg_replace($search, '', $v);
+				$v = addslashes($v);
+				if($strict === true)
+				{
+					$v = strip_tags($v);
+				}
+				$string[$k] = $v;
+			}
+		}
+		return $string;
+	}
+
+    public function decode($string)
+	{
+		if(!is_int($string) AND !is_bool($string) AND !is_float($string))
+		{
+			$string = stripslashes($string);
+		}
+		else if(is_int($string))
+		{
+			$string = (int) $string;
+		}
+		return $string;
+	}
+    /* end myelophone changes */
 }
+
+?>
