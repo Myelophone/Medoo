@@ -8,6 +8,7 @@
 	"support": {
 		"source": "https://github.com/Myelophone/Medoo"
 	},
+	"version": "2.1.9",
 	"authors": [
 		{"name": "Angel Lai", "email": "angel@medoo.in"},
 		{"name": "Aleks Ivanov", "email": "mail@aleksivanov.me"}
